@@ -41,12 +41,13 @@ bot.on("callback_query", (query) => {
             { text: "🎭 Mint NFT", callback_data: "mint_nft" },
           ],
 
-          [{ text: "🔑 Wallet Connect", callback_data: "wallet_connect" }][
-            ({
+          [{ text: "🔑 Wallet Connect", callback_data: "wallet_connect" }],
+          [
+            {
               text: "📜 Transaction History",
               callback_data: "transaction_history",
             },
-            { text: "🔙 Back", callback_data: "back_to_main" })
+            { text: "🔙 Back", callback_data: "back_to_main" },
           ],
         ],
       },
