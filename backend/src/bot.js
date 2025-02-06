@@ -18,8 +18,8 @@ bot.onText(/\/start/, (msg) => {
         inline_keyboard: [
           [{ text: "🎨 NFT Mint", callback_data: "nft_mint" }],
           [
-            { text: "💬 Join Group", url: "https://t.me/examplegroup" },
-            { text: "📢 Join Channel", url: "https://t.me/examplechannel" },
+            { text: "💬 Join Group", url: "https://t.me/+FzW-EwhbQnBkZDE0" },
+            { text: "📢 Join Channel", url: "https://t.me/lmnftminter" },
           ],
         ],
       },
@@ -40,7 +40,6 @@ bot.on("callback_query", (query) => {
             { text: "🔗 Select RPC", callback_data: "select_rpc" },
             { text: "🎭 Mint NFT", callback_data: "mint_nft" },
           ],
-
           [{ text: "🔑 Wallet Connect", callback_data: "wallet_connect" }],
           [
             {
@@ -52,14 +51,22 @@ bot.on("callback_query", (query) => {
         ],
       },
     });
+  } else if (data === "wallet_connect") {
+    const connectLink = `https://phantom.app/ul/v1/connect`;
+
+    bot.sendMessage(
+      chatId,
+      `🔗 Click the link below to connect your Solana wallet:\n\n[Connect Wallet](${connectLink})`,
+      { parse_mode: "Markdown" }
+    );
   } else if (data === "back_to_main") {
     bot.sendMessage(chatId, "🔄 Back to Main Menu:", {
       reply_markup: {
         inline_keyboard: [
           [{ text: "🎨 NFT Mint", callback_data: "nft_mint" }],
           [
-            { text: "💬 Join Group", url: "https://t.me/examplegroup" },
-            { text: "📢 Join Channel", url: "https://t.me/examplechannel" },
+            { text: "💬 Join Group", url: "https://t.me/+FzW-EwhbQnBkZDE0" },
+            { text: "📢 Join Channel", url: "https://t.me/lmnftminter" },
           ],
         ],
       },
