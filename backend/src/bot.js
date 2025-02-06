@@ -36,16 +36,18 @@ bot.on("callback_query", (query) => {
     bot.sendMessage(chatId, "🚀 Select an option:", {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "🔗 Select RPC", callback_data: "select_rpc" }],
-          [{ text: "🎭 Mint NFT", callback_data: "mint_nft" }],
-          [{ text: "🔑 Wallet Connect", callback_data: "wallet_connect" }],
           [
-            {
+            { text: "🔗 Select RPC", callback_data: "select_rpc" },
+            { text: "🎭 Mint NFT", callback_data: "mint_nft" },
+          ],
+
+          [{ text: "🔑 Wallet Connect", callback_data: "wallet_connect" }][
+            ({
               text: "📜 Transaction History",
               callback_data: "transaction_history",
             },
+            { text: "🔙 Back", callback_data: "back_to_main" })
           ],
-          [{ text: "🔙 Back", callback_data: "back_to_main" }],
         ],
       },
     });
