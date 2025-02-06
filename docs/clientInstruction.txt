@@ -1,0 +1,17 @@
+Job Lawal
+let’s do this:
+
+you are doing custom rpc adding + rpc checker and lmnft minting bot
+
+i’m checking it and if its works then i’m paying $400 to you
+
+then you are starting to do magic eden module. after its done - you are receiving another $300
+
+then you are starting to do tensor module. after its done - you are receiving another $250
+
+Job Lawal, [2/6/2025 9:35 AM]
+1) nfts count to mint
+2) stage selection
+3) rpc selection for mint
+4) wallet selection to mint
+5) fees & compute units
