@@ -1,5 +1,7 @@
 const express = require("express");
 const TelegramBot = require("node-telegram-bot-api");
+const axios = require("axios");
+
 require("dotenv").config();
 
 const app = express();
@@ -7,9 +9,29 @@ const app = express();
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
-bot.onText(/\/start/, (msg) => {
+bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
 
+  // Extract Telegram user details from the message object
+  const telegramId = String(chatId); // Use chat.id as the unique Telegram identifier
+  const firstName = msg.from.first_name;
+  const lastName = msg.from.last_name || "";
+  const username = msg.from.username || "";
+
+  // POST the user details to your API endpoint
+  try {
+    await axios.post("https://lmnft-mintingbot.onrender.com/api/users", {
+      telegramId,
+      firstName,
+      lastName,
+      username,
+    });
+    console.log("User saved to database");
+  } catch (error) {
+    console.error("Error saving user:", error.message);
+  }
+
+  // Send welcome message
   bot.sendMessage(
     chatId,
     "🔥 Welcome to the Ultimate NFT Minting Bot! 🚀\n\nChoose an option below:",

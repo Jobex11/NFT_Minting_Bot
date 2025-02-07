@@ -1,0 +1,234 @@
+
+======>>>
+wallet 
+==========
+
+
+
+
+
+You'll need to integrate **Solana Web3.js** to create and import wallets, 
+retrieve balances, and store user data in your database. Below is the 
+implementation for **wallet connect** in your Telegram bot.
+
+---
+
+## 🔹 **Steps to Implement**
+1. **User clicks "🔑 Wallet Connect"**
+2. If the user **already has a wallet connected**, show:
+   - ✅ Their **wallet address**
+   - 💰 Their **SOL balance**
+   - 🔄 A button to **change wallet**
+3. If **no wallet is connected**, show:
+   - 🆕 **Create New Wallet**
+   - 🔑 **Import Wallet (Private Key)**  
+4. **If they choose "Import Wallet"**  
+   - Ask them for their **private key**
+   - Fetch and store their **Solana wallet details**
+5. **If they choose "Create Wallet"**  
+   - Generate a **new Solana wallet**
+   - Show them their **wallet address & secret key**
+   - Store it in the database for future access
+
+---
+
+## 🔹 **Dependencies**
+Make sure to install:
+```sh
+npm install axios dotenv mongoose node-telegram-bot-api @solana/web3.js
+```
+
+---
+
+## ✅ **Updated Code (Wallet Connect Feature)**  
+
+```javascript
+const TelegramBot = require("node-telegram-bot-api");
+const axios = require("axios");
+const { Keypair, Connection, clusterApiUrl, PublicKey } = require("@solana/web3.js");
+require("dotenv").config();
+
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+
+const SOLANA_CONNECTION = new Connection(clusterApiUrl("mainnet-beta"));
+
+// Simulating Database (Replace with MongoDB in production)
+const userWallets = {};
+
+// 📌 Helper Function: Get SOL Balance
+const getSolanaBalance = async (walletAddress) => {
+  try {
+    const balance = await SOLANA_CONNECTION.getBalance(new PublicKey(walletAddress));
+    return balance / 1e9; // Convert from lamports to SOL
+  } catch (error) {
+    console.error("Error fetching balance:", error);
+    return 0;
+  }
+};
+
+// 📌 Handle Wallet Connect Button Click
+bot.on("callback_query", async (query) => {
+  const chatId = query.message.chat.id;
+  const data = query.data;
+
+  // 🟢 If user clicks "Wallet Connect"
+  if (data === "wallet_connect") {
+    if (userWallets[chatId]) {
+      const walletAddress = userWallets[chatId].address;
+      const balance = await getSolanaBalance(walletAddress);
+
+      bot.sendMessage(
+        chatId,
+        `🟢 **Connected Wallet**\n\n` +
+        `💳 **Address:** \`${walletAddress}\`\n` +
+        `💰 **SOL Balance:** ${balance.toFixed(4)} SOL\n\n` +
+        `🔄 Click "Change Wallet" to switch.`,
+        {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [[{ text: "🔄 Change Wallet", callback_data: "change_wallet" }]],
+          },
+        }
+      );
+    } else {
+      bot.sendMessage(
+        chatId,
+        "🔑 **Wallet Connect**\n\n" +
+        "Please choose an option below:",
+        {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🆕 Create New Wallet", callback_data: "create_wallet" }],
+              [{ text: "🔑 Import Wallet", callback_data: "import_wallet" }],
+            ],
+          },
+        }
+      );
+    }
+  }
+
+  // 🆕 Create New Wallet
+  if (data === "create_wallet") {
+    const keypair = Keypair.generate();
+    const walletAddress = keypair.publicKey.toBase58();
+    const secretKey = Buffer.from(keypair.secretKey).toString("hex");
+
+    // Store user wallet
+    userWallets[chatId] = { address: walletAddress, secretKey };
+
+    bot.sendMessage(
+      chatId,
+      `🎉 **New Solana Wallet Created!**\n\n` +
+      `💳 **Wallet Address:** \`${walletAddress}\`\n` +
+      `🔐 **Secret Key:** \`${secretKey}\`\n\n` +
+      `⚠️ *Save your secret key safely! If lost, recovery is impossible.*`,
+      { parse_mode: "Markdown" }
+    );
+  }
+
+  // 🔑 Import Wallet
+  if (data === "import_wallet") {
+    bot.sendMessage(chatId, "✍️ *Please enter your private key:*", { parse_mode: "Markdown" });
+
+    bot.once("message", async (msg) => {
+      try {
+        const secretKey = Uint8Array.from(Buffer.from(msg.text, "hex"));
+        const keypair = Keypair.fromSecretKey(secretKey);
+        const walletAddress = keypair.publicKey.toBase58();
+
+        // Store user wallet
+        userWallets[chatId] = { address: walletAddress, secretKey: msg.text };
+
+        bot.sendMessage(
+          chatId,
+          `✅ **Wallet Imported Successfully!**\n\n` +
+          `💳 **Wallet Address:** \`${walletAddress}\``,
+          { parse_mode: "Markdown" }
+        );
+      } catch (error) {
+        bot.sendMessage(chatId, "❌ Invalid private key. Please try again.");
+      }
+    });
+  }
+
+  // 🔄 Change Wallet
+  if (data === "change_wallet") {
+    bot.sendMessage(
+      chatId,
+      "🔄 **Change Wallet**\n\n" +
+      "Choose an option:",
+      {
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🆕 Create New Wallet", callback_data: "create_wallet" }],
+            [{ text: "🔑 Import Wallet", callback_data: "import_wallet" }],
+          ],
+        },
+      }
+    );
+  }
+});
+
+// 📌 Handle "/start" Command
+bot.onText(/\/start/, (msg) => {
+  const chatId = msg.chat.id;
+
+  bot.sendMessage(
+    chatId,
+    "🔥 **Welcome to LMNFT Bot!** 🚀\n\nChoose an option below:",
+    {
+      parse_mode: "Markdown",
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🎨 NFT Mint", callback_data: "nft_mint" }],
+          [{ text: "🔑 Wallet Connect", callback_data: "wallet_connect" }],
+          [
+            { text: "💬 Join Group", url: "https://t.me/+FzW-EwhbQnBkZDE0" },
+            { text: "📢 Join Channel", url: "https://t.me/lmnftminter" },
+          ],
+        ],
+      },
+    }
+  );
+});
+```
+
+---
+
+## 🔹 **How It Works**
+1. ✅ When the user clicks **"🔑 Wallet Connect"**:
+   - If a wallet is **already connected**, it **displays their address and balance**.
+   - If **no wallet is connected**, it shows:
+     - 🆕 **Create New Wallet**
+     - 🔑 **Import Wallet**
+  
+2. ✅ **"🆕 Create New Wallet"**:
+   - Generates a new Solana wallet.
+   - Returns **wallet address & private key** (user must save the private key).
+
+3. ✅ **"🔑 Import Wallet"**:
+   - Asks the user to **enter their private key**.
+   - Retrieves the **wallet address** and saves it.
+
+4. ✅ **"🔄 Change Wallet"**:
+   - Allows users to create or import a new wallet.
+
+---
+
+## 🔹 **Next Steps**
+- 🔹 Store user wallets in **MongoDB** instead of `userWallets` object.
+- 🔹 Add a **Mint NFT function** once wallet connect is done.
+
+---
+
+## 🚀 **Final Thoughts**
+This bot now fully supports **wallet connection** on Telegram, allowing users to:
+✅ Create a new Solana wallet  
+✅ Import an existing wallet  
+✅ View their wallet address & balance  
+✅ Change their wallet anytime  
+
+Let me know if you need additional improvements! 🚀🔥
