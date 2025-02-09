@@ -12,10 +12,12 @@ const userSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 
   // WALLET FUNCTIONALITITES
-  connectedWallet: { type: String },
   walletAddress: { type: String },
+  privatekey: { type: String }, //store private key  securely(consider encrypting)
 
   // other functionalities
+  joined_channel: { type: Boolean },
+  joined_group: { type: Boolean },
 });
 
 module.exports = mongoose.model("User", userSchema);
