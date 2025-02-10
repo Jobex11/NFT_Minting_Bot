@@ -18,6 +18,9 @@ const userSchema = new mongoose.Schema({
   // other functionalities
   joined_channel: { type: Boolean },
   joined_group: { type: Boolean },
+
+  //
+  rpcUrl: { type: String },
 });
 
 module.exports = mongoose.model("User", userSchema);

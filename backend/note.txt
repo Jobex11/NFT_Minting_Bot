@@ -1,234 +1,231 @@
-
-======>>>
-wallet 
-==========
+==============
+==============
 
 
 
+RPC (Remote Procedure Call) selection for minting typically refers to allowing users to choose which Solana RPC endpoint they want to use for sending transactions (in this case, minting NFTs). Different RPC providers offer varying levels of speed, reliability, and rate limits, which can impact the success and efficiency of NFT minting.
 
-
-You'll need to integrate **Solana Web3.js** to create and import wallets, 
-retrieve balances, and store user data in your database. Below is the 
-implementation for **wallet connect** in your Telegram bot.
-
----
-
-## 🔹 **Steps to Implement**
-1. **User clicks "🔑 Wallet Connect"**
-2. If the user **already has a wallet connected**, show:
-   - ✅ Their **wallet address**
-   - 💰 Their **SOL balance**
-   - 🔄 A button to **change wallet**
-3. If **no wallet is connected**, show:
-   - 🆕 **Create New Wallet**
-   - 🔑 **Import Wallet (Private Key)**  
-4. **If they choose "Import Wallet"**  
-   - Ask them for their **private key**
-   - Fetch and store their **Solana wallet details**
-5. **If they choose "Create Wallet"**  
-   - Generate a **new Solana wallet**
-   - Show them their **wallet address & secret key**
-   - Store it in the database for future access
+### **Why is RPC Selection Important?**
+- **Load Balancing:** Some RPCs might be congested, leading to slow transactions. Selecting a different RPC can improve performance.
+- **Avoiding Rate Limits:** Public RPCs have request limits, so users might prefer a private RPC or a provider like QuickNode, Alchemy, or Ankr.
+- **Network Reliability:** Some RPCs might experience downtime or be slow in certain regions.
 
 ---
 
-## 🔹 **Dependencies**
-Make sure to install:
-```sh
-npm install axios dotenv mongoose node-telegram-bot-api @solana/web3.js
+### **How to Implement RPC Selection in Your Bot**
+You need to:
+1. **Store a List of Available RPCs**  
+   - Default: Solana’s public RPC (`https://api.mainnet-beta.solana.com`)
+   - Additional: QuickNode, Alchemy, Ankr, custom RPCs
+2. **Allow Users to Choose an RPC**
+   - Provide a menu with different RPC options.
+3. **Save the Selected RPC per User**
+   - Store the user's selected RPC in the database.
+4. **Use the Selected RPC for Minting**
+   - When the user initiates a minting transaction, use their selected RPC.
+
+---
+
+### **Modify Your Bot to Support RPC Selection**
+#### **Step 1: Define Available RPCs**
+Modify your bot to store a list of RPCs.
+
+```javascript
+const RPC_LIST = [
+  { name: "Solana Mainnet", url: "https://api.mainnet-beta.solana.com" },
+  { name: "QuickNode", url: "https://solana-mainnet.quiknode.pro/YOUR_API_KEY/" },
+  { name: "Alchemy", url: "https://solana-mainnet.g.alchemy.com/v2/YOUR_API_KEY" },
+  { name: "Ankr", url: "https://rpc.ankr.com/solana" }
+];
 ```
 
 ---
 
-## ✅ **Updated Code (Wallet Connect Feature)**  
+#### **Step 2: Create an RPC Selection Menu**
+Modify the bot’s callback handler to show RPC selection.
 
 ```javascript
-const TelegramBot = require("node-telegram-bot-api");
-const axios = require("axios");
-const { Keypair, Connection, clusterApiUrl, PublicKey } = require("@solana/web3.js");
-require("dotenv").config();
-
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const bot = new TelegramBot(BOT_TOKEN, { polling: true });
-
-const SOLANA_CONNECTION = new Connection(clusterApiUrl("mainnet-beta"));
-
-// Simulating Database (Replace with MongoDB in production)
-const userWallets = {};
-
-// 📌 Helper Function: Get SOL Balance
-const getSolanaBalance = async (walletAddress) => {
-  try {
-    const balance = await SOLANA_CONNECTION.getBalance(new PublicKey(walletAddress));
-    return balance / 1e9; // Convert from lamports to SOL
-  } catch (error) {
-    console.error("Error fetching balance:", error);
-    return 0;
-  }
-};
-
-// 📌 Handle Wallet Connect Button Click
 bot.on("callback_query", async (query) => {
   const chatId = query.message.chat.id;
   const data = query.data;
 
-  // 🟢 If user clicks "Wallet Connect"
-  if (data === "wallet_connect") {
-    if (userWallets[chatId]) {
-      const walletAddress = userWallets[chatId].address;
-      const balance = await getSolanaBalance(walletAddress);
+  if (data === "select_rpc") {
+    const rpcOptions = RPC_LIST.map((rpc, index) => [
+      { text: rpc.name, callback_data: `rpc_${index}` },
+    ]);
 
-      bot.sendMessage(
-        chatId,
-        `🟢 **Connected Wallet**\n\n` +
-        `💳 **Address:** \`${walletAddress}\`\n` +
-        `💰 **SOL Balance:** ${balance.toFixed(4)} SOL\n\n` +
-        `🔄 Click "Change Wallet" to switch.`,
-        {
-          parse_mode: "Markdown",
-          reply_markup: {
-            inline_keyboard: [[{ text: "🔄 Change Wallet", callback_data: "change_wallet" }]],
-          },
-        }
-      );
-    } else {
-      bot.sendMessage(
-        chatId,
-        "🔑 **Wallet Connect**\n\n" +
-        "Please choose an option below:",
-        {
-          parse_mode: "Markdown",
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: "🆕 Create New Wallet", callback_data: "create_wallet" }],
-              [{ text: "🔑 Import Wallet", callback_data: "import_wallet" }],
-            ],
-          },
-        }
-      );
-    }
-  }
-
-  // 🆕 Create New Wallet
-  if (data === "create_wallet") {
-    const keypair = Keypair.generate();
-    const walletAddress = keypair.publicKey.toBase58();
-    const secretKey = Buffer.from(keypair.secretKey).toString("hex");
-
-    // Store user wallet
-    userWallets[chatId] = { address: walletAddress, secretKey };
-
-    bot.sendMessage(
-      chatId,
-      `🎉 **New Solana Wallet Created!**\n\n` +
-      `💳 **Wallet Address:** \`${walletAddress}\`\n` +
-      `🔐 **Secret Key:** \`${secretKey}\`\n\n` +
-      `⚠️ *Save your secret key safely! If lost, recovery is impossible.*`,
-      { parse_mode: "Markdown" }
-    );
-  }
-
-  // 🔑 Import Wallet
-  if (data === "import_wallet") {
-    bot.sendMessage(chatId, "✍️ *Please enter your private key:*", { parse_mode: "Markdown" });
-
-    bot.once("message", async (msg) => {
-      try {
-        const secretKey = Uint8Array.from(Buffer.from(msg.text, "hex"));
-        const keypair = Keypair.fromSecretKey(secretKey);
-        const walletAddress = keypair.publicKey.toBase58();
-
-        // Store user wallet
-        userWallets[chatId] = { address: walletAddress, secretKey: msg.text };
-
-        bot.sendMessage(
-          chatId,
-          `✅ **Wallet Imported Successfully!**\n\n` +
-          `💳 **Wallet Address:** \`${walletAddress}\``,
-          { parse_mode: "Markdown" }
-        );
-      } catch (error) {
-        bot.sendMessage(chatId, "❌ Invalid private key. Please try again.");
-      }
+    bot.sendMessage(chatId, "🌐 Select an RPC for minting:", {
+      reply_markup: { inline_keyboard: rpcOptions },
     });
   }
 
-  // 🔄 Change Wallet
-  if (data === "change_wallet") {
-    bot.sendMessage(
-      chatId,
-      "🔄 **Change Wallet**\n\n" +
-      "Choose an option:",
-      {
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "🆕 Create New Wallet", callback_data: "create_wallet" }],
-            [{ text: "🔑 Import Wallet", callback_data: "import_wallet" }],
-          ],
-        },
-      }
+  if (data.startsWith("rpc_")) {
+    const index = parseInt(data.split("_")[1]);
+    const selectedRpc = RPC_LIST[index];
+
+    // Store the user's selected RPC in the database
+    await User.findOneAndUpdate(
+      { telegramId: chatId },
+      { selectedRpc: selectedRpc.url },
+      { upsert: true, new: true }
     );
+
+    bot.sendMessage(chatId, `✅ RPC set to: ${selectedRpc.name}`);
   }
-});
-
-// 📌 Handle "/start" Command
-bot.onText(/\/start/, (msg) => {
-  const chatId = msg.chat.id;
-
-  bot.sendMessage(
-    chatId,
-    "🔥 **Welcome to LMNFT Bot!** 🚀\n\nChoose an option below:",
-    {
-      parse_mode: "Markdown",
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "🎨 NFT Mint", callback_data: "nft_mint" }],
-          [{ text: "🔑 Wallet Connect", callback_data: "wallet_connect" }],
-          [
-            { text: "💬 Join Group", url: "https://t.me/+FzW-EwhbQnBkZDE0" },
-            { text: "📢 Join Channel", url: "https://t.me/lmnftminter" },
-          ],
-        ],
-      },
-    }
-  );
 });
 ```
 
 ---
 
-## 🔹 **How It Works**
-1. ✅ When the user clicks **"🔑 Wallet Connect"**:
-   - If a wallet is **already connected**, it **displays their address and balance**.
-   - If **no wallet is connected**, it shows:
-     - 🆕 **Create New Wallet**
-     - 🔑 **Import Wallet**
-  
-2. ✅ **"🆕 Create New Wallet"**:
-   - Generates a new Solana wallet.
-   - Returns **wallet address & private key** (user must save the private key).
+#### **Step 3: Use the Selected RPC for Minting**
+Modify the function that handles transactions to use the user’s selected RPC.
 
-3. ✅ **"🔑 Import Wallet"**:
-   - Asks the user to **enter their private key**.
-   - Retrieves the **wallet address** and saves it.
+```javascript
+async function fetchSolBalance(walletAddress, telegramId) {
+  try {
+    const user = await User.findOne({ telegramId });
 
-4. ✅ **"🔄 Change Wallet"**:
-   - Allows users to create or import a new wallet.
+    const rpcUrl = user?.selectedRpc || solanaWeb3.clusterApiUrl("mainnet-beta");
+    const connection = new solanaWeb3.Connection(rpcUrl);
 
----
-
-## 🔹 **Next Steps**
-- 🔹 Store user wallets in **MongoDB** instead of `userWallets` object.
-- 🔹 Add a **Mint NFT function** once wallet connect is done.
+    const balance = await connection.getBalance(new solanaWeb3.PublicKey(walletAddress));
+    return (balance / solanaWeb3.LAMPORTS_PER_SOL).toFixed(4);
+  } catch (error) {
+    console.error("Error fetching balance:", error);
+    return "0";
+  }
+}
+```
 
 ---
 
-## 🚀 **Final Thoughts**
-This bot now fully supports **wallet connection** on Telegram, allowing users to:
-✅ Create a new Solana wallet  
-✅ Import an existing wallet  
-✅ View their wallet address & balance  
-✅ Change their wallet anytime  
+### **Final Steps**
+- Ensure users can see their selected RPC before minting.
+- Provide an option to change their RPC anytime.
+- Test with different RPC providers to check response times.
 
-Let me know if you need additional improvements! 🚀🔥
+This implementation allows users to **select** their preferred RPC, **store it**, and **use it** dynamically for transactions like minting NFTs. 🚀
+
+
+
+
+
+
+
+============
+
+============
+
+
+
+Minting an NFT means creating a unique digital asset on the blockchain. On **Solana**, minting involves creating a **new token** that follows the **Token Metadata Standard** (Metaplex) and assigning it ownership and metadata.
+
+---
+
+### **🔹 How NFT Minting Works on Solana**
+Here’s a step-by-step breakdown of how NFTs are minted:
+
+### **1️⃣ Create a New Token Mint**
+- Each NFT has a **unique mint address** (like an ID).
+- The mint account stores token-related information (supply, decimals, authority).
+
+### **2️⃣ Create an Associated Token Account**
+- The NFT needs an account to be stored in.
+- The owner’s wallet receives the NFT via an **Associated Token Account (ATA)**.
+
+### **3️⃣ Upload Metadata to Arweave/IPFS**
+- NFTs contain images, names, and descriptions stored off-chain (IPFS, Arweave).
+- A JSON file (metadata) is created that points to the image.
+
+### **4️⃣ Create the Metadata Account (Metaplex)**
+- Metaplex stores the metadata on Solana using the **Token Metadata Program**.
+
+### **5️⃣ Mint the NFT**
+- The NFT is assigned to the user’s wallet.
+- Supply is usually set to **1** (1-of-1 NFT).
+
+---
+
+## **🔹 Example: Minting an NFT on Solana with JavaScript**
+To mint an NFT, we use **@solana/web3.js** and **@metaplex-foundation/js**.
+
+### **📌 1. Install Dependencies**
+```sh
+npm install @solana/web3.js @metaplex-foundation/js
+```
+
+---
+
+### **📌 2. Load Dependencies & Connect to Solana**
+```javascript
+const { Connection, Keypair, PublicKey } = require("@solana/web3.js");
+const { Metaplex, bundlrStorage, keypairIdentity } = require("@metaplex-foundation/js");
+
+// Connect to Solana mainnet/testnet/devnet
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+
+// Load wallet
+const secretKey = Uint8Array.from(JSON.parse(process.env.PRIVATE_KEY));
+const wallet = Keypair.fromSecretKey(secretKey);
+```
+
+---
+
+### **📌 3. Upload NFT Metadata to Arweave**
+```javascript
+const metaplex = Metaplex.make(connection)
+  .use(keypairIdentity(wallet))
+  .use(bundlrStorage());
+
+async function uploadMetadata() {
+  const { uri } = await metaplex.nfts().uploadMetadata({
+    name: "My NFT",
+    symbol: "NFT",
+    description: "This is my first NFT!",
+    image: "https://arweave.net/YOUR_IMAGE_HASH",
+  });
+
+  console.log("Metadata URI:", uri);
+  return uri;
+}
+```
+
+---
+
+### **📌 4. Mint the NFT**
+```javascript
+async function mintNFT() {
+  const metadataUri = await uploadMetadata();
+
+  const { nft } = await metaplex.nfts().create({
+    uri: metadataUri,
+    name: "My NFT",
+    sellerFeeBasisPoints: 500, // 5% royalty
+    symbol: "NFT",
+    creators: [{ address: wallet.publicKey, share: 100 }],
+  });
+
+  console.log("NFT Minted! Address:", nft.mint.toString());
+}
+
+mintNFT();
+```
+
+---
+
+## **🔹 What Happens After Minting?**
+- The NFT is **created on Solana** with a **unique mint address**.
+- Metadata is stored on **Arweave/IPFS**.
+- The NFT appears in the **wallet** (e.g., Phantom, Solflare).
+- The owner can **transfer/sell/list** it on **Magic Eden, OpenSea, or Tensor**.
+
+---
+
+## **🔹 Customizing the Minting Process**
+Depending on your use case, you might want to:
+✅ Allow **users to select RPC endpoints** for faster transactions.  
+✅ Use **Candy Machine** (Metaplex) for **batch minting** (e.g., 10,000 NFTs).  
+✅ Implement **minting fees** (charging SOL to mint an NFT).  
+✅ Add **royalties** so you get a % of secondary sales.  
+
+Let me know if you need specific modifications for your minting bot! 🚀

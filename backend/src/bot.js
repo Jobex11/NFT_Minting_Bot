@@ -5,13 +5,14 @@ const solanaWeb3 = require("@solana/web3.js");
 const bs58 = require("bs58");
 require("dotenv").config();
 
+// Import models
 const User = require("../src/models/userModel");
 
 const app = express();
-
-const BOT_TOKEN = process.env.BOT_TOKEN;
 const GROUP_ID = process.env.GROUP_ID; // Your Telegram Group ID
 const CHANNEL_ID = process.env.CHANNEL_ID; // Your Telegram Channel ID
+
+const BOT_TOKEN = process.env.BOT_TOKEN;
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
 bot.onText(/\/start/, async (msg) => {
@@ -23,12 +24,11 @@ bot.onText(/\/start/, async (msg) => {
   const username = msg.from.username || "";
 
   try {
-    let user = await User.findOneAndUpdate(
+    await User.findOneAndUpdate(
       { telegramId },
       { telegramId, firstName, lastName, username },
       { upsert: true, new: true }
     );
-
     console.log("User saved to database");
   } catch (error) {
     console.error("Error saving user:", error.message);
@@ -36,7 +36,7 @@ bot.onText(/\/start/, async (msg) => {
 
   bot.sendMessage(
     chatId,
-    "🔥 Welcome to the Ultimate NFT Minting Bot! 🚀\n\nChoose an option below:",
+    "🔥 Welcome to the Ultimate NFT Minting Bot! 🚀\n\nChoose an option below: \n\n Join the group, channel,  and connect your wallet before minting.",
     {
       reply_markup: {
         inline_keyboard: [
@@ -52,7 +52,7 @@ bot.onText(/\/start/, async (msg) => {
   );
 });
 
-// ✅ Function to check if user is in group
+// FUNCTION TO CHECK USER IN GROUP
 const checkUserMembership = async (userId, chatId) => {
   try {
     const res = await bot.getChatMember(chatId, userId);
@@ -63,31 +63,13 @@ const checkUserMembership = async (userId, chatId) => {
   }
 };
 
-// ✅ Handle Wallet Connection
-bot.on("callback_query", async (callbackQuery) => {
-  const { message, data, from } = callbackQuery;
-  const chatId = message.chat.id;
-  const telegramId = String(chatId);
+// Handles button clicks
+bot.on("callback_query", async (query) => {
+  const chatId = query.message.chat.id;
+  const data = query.data;
+  const telegramId = chatId;
 
-  if (data === "wallet_connect") {
-    bot.sendMessage(chatId, "Please enter your Solana wallet address:");
-    bot.once("message", async (msg) => {
-      if (!msg.text) return bot.sendMessage(chatId, "Invalid input.");
-      const walletAddress = msg.text.trim();
-
-      try {
-        await User.findOneAndUpdate(
-          { telegramId },
-          { walletAddress },
-          { new: true }
-        );
-        bot.sendMessage(chatId, "✅ Wallet connected successfully!");
-      } catch (error) {
-        bot.sendMessage(chatId, "❌ Error saving wallet.");
-      }
-    });
-  }
-
+  // NFT MINT
   if (data === "nft_mint") {
     const user = await User.findOne({ telegramId });
 
@@ -113,8 +95,8 @@ bot.on("callback_query", async (callbackQuery) => {
                   text: "💬 Join Group",
                   url: "https://t.me/+FzW-EwhbQnBkZDE0",
                 },
+                { text: "📢 Join Channel", url: "https://t.me/lmnftminter" },
               ],
-              [{ text: "📢 Join Channel", url: "https://t.me/lmnftminter" }],
             ],
           },
         }
@@ -128,31 +110,216 @@ bot.on("callback_query", async (callbackQuery) => {
       );
     }
 
-    bot.sendMessage(chatId, "✅ All requirements met! Minting NFT...");
-    // Add NFT minting here
+    // ✅ Show the new menu with NFT minting options
+    bot.sendMessage(chatId, "🚀 Select an option:", {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "🔗 Select RPC", callback_data: "select_rpc" },
+            { text: "🎭 Mint NFT", callback_data: "mint_nft" },
+          ],
+          [
+            {
+              text: "🔑 Wallet Management",
+              callback_data: "wallet_management",
+            },
+          ],
+          [
+            {
+              text: "📜 Transaction History",
+              callback_data: "transaction_history",
+            },
+            { text: "🔙 Back", callback_data: "back_to_main" },
+          ],
+        ],
+      },
+    });
+  }
 
-    bot.sendMessage(
+  //SELECT RPC
+
+  //===>> rpc infos
+  else if (data === "select_rpc") {
+    bot.sendMessage(chatId, "🌐 Choose an RPC option or enter a custom one:", {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "🔵 Mainnet", callback_data: "rpc_mainnet" },
+            { text: "🟡 Testnet", callback_data: "rpc_testnet" },
+          ],
+          [
+            { text: "🟢 Devnet", callback_data: "rpc_devnet" },
+            { text: "✏️ Enter Custom RPC", callback_data: "rpc_custom" },
+          ],
+        ],
+      },
+    });
+  } else if (data === "rpc_mainnet") {
+    await User.findOneAndUpdate(
+      { telegramId: chatId },
+      { rpcUrl: solanaWeb3.clusterApiUrl("mainnet-beta") }
+    );
+    bot.sendMessage(chatId, "✅ RPC switched to **Mainnet**.");
+  } else if (data === "rpc_testnet") {
+    await User.findOneAndUpdate(
+      { telegramId: chatId },
+      { rpcUrl: solanaWeb3.clusterApiUrl("testnet") }
+    );
+    bot.sendMessage(chatId, "✅ RPC switched to **Testnet**.");
+  } else if (data === "rpc_devnet") {
+    await User.findOneAndUpdate(
+      { telegramId: chatId },
+      { rpcUrl: solanaWeb3.clusterApiUrl("devnet") }
+    );
+    bot.sendMessage(chatId, "✅ RPC switched to **Devnet**.");
+  } else if (data === "rpc_custom") {
+    bot.sendMessage(chatId, "✏️ Send me the RPC URL you'd like to use.");
+  }
+
+  //===>> ENDS
+
+  //WALLET MANAGEMENT
+  //BACK
+  //TRANSACTION HISTORY
+
+  // WALLET CONNECT
+  else if (data === "wallet_connect") {
+    const user = await User.findOne({ telegramId: chatId });
+
+    if (user && user.walletAddress) {
+      // User already has a wallet, show wallet info
+      const balance = await fetchSolBalance(user.walletAddress);
+      bot.sendMessage(
         chatId,
-        "🔥 Welcome to the Ultimate NFT Minting Bot! 🚀\n\nChoose an option below:",
+        `✅ Wallet Connected!\n\n🔹 **Address:** \`${user.walletAddress}\`\n💰 **Balance:** \`${balance} SOL\`\n🔐 **Private Key:** \`${user.privateKey}\``,
+        { parse_mode: "Markdown" }
+      );
+    } else {
+      // Ask user how they want to connect their wallet
+      bot.sendMessage(
+        chatId,
+        "How would you like to connect your Solana wallet?",
         {
           reply_markup: {
             inline_keyboard: [
-              [{ text: "🎨 NFT Mint", callback_data: "nft_mint" }],
-              [{ text: "🔑 Wallet Connect", callback_data: "wallet_connect" }],
               [
-                { text: "💬 Join Group", url: "https://t.me/+FzW-EwhbQnBkZDE0" },
-                { text: "📢 Join Channel", url: "https://t.me/lmnftminter" },
+                {
+                  text: "🔑 Import Existing Wallet",
+                  callback_data: "import_wallet",
+                },
+              ],
+              [
+                {
+                  text: "🆕 Create New Wallet",
+                  callback_data: "create_wallet",
+                },
               ],
             ],
           },
         }
       );
-    });
+    }
+  } else if (data === "create_wallet") {
+    const newWallet = solanaWeb3.Keypair.generate();
+    const publicKey = newWallet.publicKey.toBase58();
+    const privateKey = bs58.encode(newWallet.secretKey);
 
+    try {
+      const user = await User.findOneAndUpdate(
+        { telegramId: chatId },
+        { walletAddress: publicKey, privateKey: privateKey },
+        { upsert: true, new: true }
+      );
 
+      console.log("New Wallet Created & Saved:", user);
 
+      bot.sendMessage(
+        chatId,
+        `✅ **Wallet Created!**\n\n🔹 **Address:** \`${publicKey}\`\n🔐 **Private Key (Keep Safe!):** \`${privateKey}\``,
+        { parse_mode: "Markdown" }
+      );
 
+      // Fetch balance
+      const balance = await fetchSolBalance(publicKey);
+      bot.sendMessage(chatId, `💰 **Your SOL Balance:** \`${balance} SOL\``, {
+        parse_mode: "Markdown",
+      });
+    } catch (error) {
+      console.error("Error saving wallet:", error);
+      bot.sendMessage(chatId, "❌ Failed to save wallet. Please try again.");
+    }
+  } else if (data === "import_wallet") {
+    bot.sendMessage(
+      chatId,
+      "Send me your **private key** to import your wallet.",
+      { parse_mode: "Markdown" }
+    );
   }
 });
+
+// Handle private key input
+bot.on("message", async (msg) => {
+  const chatId = msg.chat.id;
+  const text = msg.text;
+
+  if (
+    text.startsWith("/") ||
+    (await User.findOne({ telegramId: chatId, walletAddress: { $ne: null } }))
+  )
+    return;
+
+  try {
+    let secretKey;
+
+    // Detect if input is Base58 or Uint8Array format
+    if (text.includes(",")) {
+      secretKey = Uint8Array.from(text.split(",").map(Number));
+    } else {
+      secretKey = bs58.decode(text);
+    }
+
+    const importedWallet = solanaWeb3.Keypair.fromSecretKey(secretKey);
+    const publicKey = importedWallet.publicKey.toBase58();
+    const privateKey = bs58.encode(secretKey);
+
+    // Save wallet to database
+    const user = await User.findOneAndUpdate(
+      { telegramId: chatId },
+      { walletAddress: publicKey, privateKey: privateKey },
+      { upsert: true, new: true }
+    );
+
+    console.log("Wallet Imported & Saved:", user);
+
+    const balance = await fetchSolBalance(publicKey);
+    bot.sendMessage(
+      chatId,
+      `✅ **Wallet Imported!**\n\n🔹 **Address:** \`${publicKey}\`\n🔐 **Private Key:** \`${privateKey}\`\n💰 **Your SOL Balance:** \`${balance} SOL\``,
+      { parse_mode: "Markdown" }
+    );
+  } catch (error) {
+    console.error("Import Error:", error);
+    bot.sendMessage(chatId, "❌ Invalid private key! Please try again.");
+  }
+});
+
+// Fetch SOL balance
+async function fetchSolBalance(walletAddress, rpcUrl) {
+  try {
+    const connection = new solanaWeb3.Connection(
+      solanaWeb3.clusterApiUrl("devnet")
+    );
+    //rpc  mainnet-beta
+    const balance = await connection.getBalance(
+      new solanaWeb3.PublicKey(walletAddress)
+    );
+    return (balance / solanaWeb3.LAMPORTS_PER_SOL).toFixed(4); // 4 decimal places
+  } catch (error) {
+    console.error("Error fetching balance:", error);
+    return "0"; // Return zero if fetch fails
+  }
+}
+
+console.log("Bot is running...");
 
 module.exports = bot;
