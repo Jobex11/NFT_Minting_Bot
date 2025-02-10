@@ -177,7 +177,7 @@ bot.on("callback_query", async (query) => {
     );
     bot.sendMessage(chatId, "✅ RPC switched to **Mainnet**.");
   } else if (data === "rpc_devnet") {
-  /*
+    /*
   else if (data === "rpc_testnet") {
     await User.findOneAndUpdate(
       { telegramId: chatId },
