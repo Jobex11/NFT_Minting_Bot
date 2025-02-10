@@ -144,11 +144,27 @@ bot.on("callback_query", async (query) => {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: "🔵 Mainnet", callback_data: "rpc_mainnet" },
-            { text: "🟡 Testnet", callback_data: "rpc_testnet" },
+            { text: "🟢 Mainnet", callback_data: "rpc_mainnet" },
+            { text: "🟢 Devnet", callback_data: "rpc_devnet" },
           ],
           [
-            { text: "🟢 Devnet", callback_data: "rpc_devnet" },
+            { text: "🔵 Alchemy Mainnet", callback_data: "alchemy_mainnet" },
+            { text: "🟡 Quick Node Mainnet", callback_data: "quick_node" },
+          ],
+          [
+            { text: "🔵 Helius Mainnet", callback_data: "helius_mainnet" },
+            { text: "🟡 Ankr Mainnet", callback_data: "ankr_node" },
+          ],
+          [
+            {
+              text: "🔵 Chainstack Mainnet",
+              callback_data: "chainstack_mainnet",
+            },
+            { text: "🟡 Blast Mainnet", callback_data: "blast_node" },
+          ],
+
+          [
+            //  { text: "🟡 Testnet", callback_data: "rpc_testnet" },
             { text: "✏️ Enter Custom RPC", callback_data: "rpc_custom" },
           ],
         ],
@@ -160,18 +176,57 @@ bot.on("callback_query", async (query) => {
       { rpcUrl: solanaWeb3.clusterApiUrl("mainnet-beta") }
     );
     bot.sendMessage(chatId, "✅ RPC switched to **Mainnet**.");
-  } else if (data === "rpc_testnet") {
+  } else if (data === "rpc_devnet") {
+  /*
+  else if (data === "rpc_testnet") {
     await User.findOneAndUpdate(
       { telegramId: chatId },
       { rpcUrl: solanaWeb3.clusterApiUrl("testnet") }
     );
     bot.sendMessage(chatId, "✅ RPC switched to **Testnet**.");
-  } else if (data === "rpc_devnet") {
+  }
+  */
     await User.findOneAndUpdate(
       { telegramId: chatId },
       { rpcUrl: solanaWeb3.clusterApiUrl("devnet") }
     );
     bot.sendMessage(chatId, "✅ RPC switched to **Devnet**.");
+  } else if (data === "alchemy_mainnet") {
+    await User.findOneAndUpdate(
+      { telegramId: chatId },
+      { rpcUrl: "https://solana-mainnet.g.alchemy.com/v2/YOUR_API_KEY" }
+    );
+    bot.sendMessage(chatId, "✅ RPC switched to Alchemy.");
+  } else if (data === "quick_mainnet") {
+    await User.findOneAndUpdate(
+      { telegramId: chatId },
+      { rpcUrl: "https://solana-mainnet.quiknode.pro/YOUR_API_KEY" }
+    );
+    bot.sendMessage(chatId, "✅ RPC switched to Quick Node.");
+  } else if (data === "helius_mainnet") {
+    await User.findOneAndUpdate(
+      { telegramId: chatId },
+      { rpcUrl: "https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY" }
+    );
+    bot.sendMessage(chatId, "✅ RPC switched to Helius Mainnet.");
+  } else if (data === "ankr_mainnet") {
+    await User.findOneAndUpdate(
+      { telegramId: chatId },
+      { rpcUrl: "https://rpc.ankr.com/solana" }
+    );
+    bot.sendMessage(chatId, "✅ RPC switched to Ankr Mainnet.");
+  } else if (data === "chainstack_mainnet") {
+    await User.findOneAndUpdate(
+      { telegramId: chatId },
+      { rpcUrl: "https://solana-mainnet.chainstacklabs.com/YOUR_API_KEY" }
+    );
+    bot.sendMessage(chatId, "✅ RPC switched to Chainstack Mainnet.");
+  } else if (data === "blast_mainnet") {
+    await User.findOneAndUpdate(
+      { telegramId: chatId },
+      { rpcUrl: "https://solana-mainnet.blastapi.io/YOUR_API_KEY" }
+    );
+    bot.sendMessage(chatId, "✅ RPC switched to Blast Mainnet.");
   } else if (data === "rpc_custom") {
     bot.sendMessage(chatId, "✏️ Send me the RPC URL you'd like to use.");
   }
