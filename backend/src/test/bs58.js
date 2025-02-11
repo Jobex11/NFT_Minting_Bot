@@ -1,21 +1,19 @@
+/*
+
+
 const TelegramBot = require("node-telegram-bot-api");
 const solanaWeb3 = require("@solana/web3.js");
 const bs58 = require("bs58");
 
-// Replace with your Telegram bot token
-const BOT_TOKEN = "8197379508:AAHu9UFq3cDDY1i5hwL8KCTT0NBfUhHadaw";
+const BOT_TOKEN = "";
 
-// Initialize the Telegram bot
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
-// Store users' wallets
 const userWallets = {};
 
-// Handle "/start" command
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
 
-  // Ask the user how they want to connect
   bot.sendMessage(chatId, "How would you like to connect your Solana wallet?", {
     reply_markup: {
       inline_keyboard: [
@@ -26,7 +24,6 @@ bot.onText(/\/start/, async (msg) => {
   });
 });
 
-// Handle button clicks
 bot.on("callback_query", async (callbackQuery) => {
   const chatId = callbackQuery.message.chat.id;
   const action = callbackQuery.data;
@@ -35,7 +32,6 @@ bot.on("callback_query", async (callbackQuery) => {
     const newWallet = solanaWeb3.Keypair.generate();
     const publicKey = newWallet.publicKey.toBase58();
 
-    // Save user's wallet
     userWallets[chatId] = newWallet;
 
     bot.sendMessage(
@@ -44,7 +40,6 @@ bot.on("callback_query", async (callbackQuery) => {
       { parse_mode: "Markdown" }
     );
 
-    // Fetch balance
     fetchSolBalance(chatId, publicKey);
   } else if (action === "import_wallet") {
     bot.sendMessage(
@@ -55,8 +50,6 @@ bot.on("callback_query", async (callbackQuery) => {
   }
 });
 
-// Handle private key input f
-
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text;
@@ -66,12 +59,9 @@ bot.on("message", async (msg) => {
   try {
     let secretKey;
 
-    // Detect if input is Base58 or Uint8Array format
     if (text.includes(",")) {
-      // Convert comma-separated string to Uint8Array
       secretKey = Uint8Array.from(text.split(",").map(Number));
     } else {
-      // Convert Base58 to Uint8Array
       secretKey = bs58.decode(text);
     }
 
@@ -93,7 +83,6 @@ bot.on("message", async (msg) => {
   }
 });
 
-// Fetch SOL balance
 async function fetchSolBalance(chatId, walletAddress) {
   try {
     const connection = new solanaWeb3.Connection(
@@ -103,13 +92,15 @@ async function fetchSolBalance(chatId, walletAddress) {
       new solanaWeb3.PublicKey(walletAddress)
     );
 
-    return (balance / solanaWeb3.LAMPORTS_PER_SOL).toFixed(4); // Return balance with 4 decimal places
+    return (balance / solanaWeb3.LAMPORTS_PER_SOL).toFixed(4);
   } catch (error) {
     bot.sendMessage(chatId, "❌ Failed to fetch SOL balance.");
-    return "0"; // Return zero if fetch fails
+    return "0";
   }
 }
 
 console.log("Bot is running...");
 
-module.exports = bot;
+
+
+*/

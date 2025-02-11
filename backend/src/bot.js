@@ -315,7 +315,10 @@ bot.on("callback_query", async (query) => {
 // Handle private key input
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
+
   const text = msg.text;
+
+  if (!text) return; // BUG CHECK
 
   if (
     text.startsWith("/") ||
@@ -354,7 +357,8 @@ bot.on("message", async (msg) => {
     );
   } catch (error) {
     console.error("Import Error:", error);
-    bot.sendMessage(chatId, "❌ Invalid private key! Please try again.");
+    //bot.sendMessage(chatId, "❌ Invalid private key! Please try again.");
+    //send message to user
   }
 });
 
